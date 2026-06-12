@@ -319,7 +319,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
       </svg>
-      AudioEdit <span style="font-size:11px;font-weight:700;color:#4f98a3;margin-left:6px;background:rgba(79,152,163,0.15);padding:1px 6px;border-radius:999px">v3</span>
+      AudioEdit <span style="font-size:11px;font-weight:700;color:#4f98a3;margin-left:6px;background:rgba(79,152,163,0.15);padding:1px 6px;border-radius:999px">v4</span>
     </div>
     <div class="topbar-actions">
       <button class="icon-btn" id="themeToggle" aria-label="切換主題">
@@ -463,13 +463,6 @@ themeToggle.addEventListener('click', () => {
 const uploadZone = document.getElementById('uploadZone');
 const fileInput  = document.getElementById('fileInput');
 uploadZone.addEventListener('click', () => {
-  // Pre-warm AudioContext inside user gesture
-  try {
-    if (!audioCtx || audioCtx.state === 'closed') {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  } catch(e) {}
   try { fileInput.click(); } catch(e) {}
 });
 uploadZone.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') fileInput.click(); });
@@ -478,11 +471,24 @@ uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag
 uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
 fileInput.addEventListener('change', function(e) {
   const f = e.target.files && e.target.files[0];
-  if (f) {
-    loadFile(f);
+  if (!f) return;
+
+  // ── CRITICAL FOR iOS SAFARI ──
+  // AudioContext MUST be created/resumed synchronously inside user gesture.
+  // The 'change' event on file input IS a user gesture on iOS.
+  try {
+    if (!audioCtx || audioCtx.state === 'closed') {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Must call resume() synchronously here, not in a promise chain
+    audioCtx.resume();
+  } catch(err) {
+    showToast('❌ 音訊引擎啟動失敗：' + err.message);
+    return;
   }
-  // Reset so same file can be re-selected
-  setTimeout(() => { try { fileInput.value = ''; } catch(e) {} }, 1000);
+
+  loadFile(f);
+  setTimeout(() => { try { fileInput.value = ''; } catch(e2) {} }, 1500);
 });
 
 function fmt(s) { const m=Math.floor(s/60); return m+':'+String(Math.floor(s%60)).padStart(2,'0'); }
@@ -496,47 +502,39 @@ function loadFile(file) {
   originalFile = file;
   sel.start = null; sel.end = null;
   pausedAt = 0;
-
-  // Ensure AudioContext exists and is running
-  try {
-    if (!audioCtx || audioCtx.state === 'closed') {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  } catch(e) {
-    hideProgress();
-    showToast('❌ 無法建立音訊引擎：' + e.message);
-    return;
-  }
-
   updateProgress(20);
 
   const reader = new FileReader();
   reader.onload = function(ev) {
     updateProgress(50);
     const arrayBuf = ev.target.result;
-    // Use callback form — most compatible on iOS Safari
-    audioCtx.decodeAudioData(
-      arrayBuf,
-      function(decoded) {
-        audioBuffer = decoded;
-        updateProgress(90);
-        try {
-          setupUI(file);
-        } catch(err) {
+    try {
+      // Callback-style decodeAudioData: most compatible with iOS Safari
+      audioCtx.decodeAudioData(
+        arrayBuf,
+        function onSuccess(decoded) {
+          audioBuffer = decoded;
+          updateProgress(90);
+          try {
+            setupUI(file);
+          } catch(err) {
+            hideProgress();
+            showToast('❌ 介面錯誤：' + err.message);
+            return;
+          }
+          updateProgress(100);
+          setTimeout(hideProgress, 300);
+          showToast('✓ 載入成功 · ' + fmt(audioBuffer.duration));
+        },
+        function onError(decodeErr) {
           hideProgress();
-          showToast('❌ 介面建立失敗：' + err.message);
-          return;
+          showToast('❌ 格式不支援，請試 .m4a 或 .wav');
         }
-        updateProgress(100);
-        setTimeout(hideProgress, 300);
-        showToast('✓ 載入成功 · ' + fmt(audioBuffer.duration));
-      },
-      function(err) {
-        hideProgress();
-        showToast('❌ 解碼失敗，請試 .m4a 或 .mp3 格式');
-      }
-    );
+      );
+    } catch(e) {
+      hideProgress();
+      showToast('❌ 解碼錯誤：' + e.message);
+    }
   };
   reader.onerror = function() {
     hideProgress();
