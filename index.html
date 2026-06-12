@@ -132,9 +132,15 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:16px;h
   text-transform:uppercase;letter-spacing:.06em;margin-bottom:var(--space-3)}
 
 /* Timeline visual */
-.timeline{position:relative;height:48px;background:var(--surface-off);
-  border-radius:var(--radius-lg);overflow:hidden;margin-bottom:var(--space-3);cursor:pointer;
-  touch-action:none}
+.timeline{position:relative;height:64px;background:var(--surface-off);
+  border-radius:var(--radius-lg);overflow:hidden;margin-bottom:var(--space-3);cursor:crosshair;
+  touch-action:none;-webkit-touch-callout:none}
+/* Handle indicators */
+.tl-handle{position:absolute;top:0;width:4px;height:100%;background:var(--primary);
+  pointer-events:none;border-radius:2px}
+.tl-handle::after{content:'';position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);width:16px;height:32px;
+  background:var(--primary);border-radius:8px;opacity:.9}
 .tl-selected{position:absolute;top:0;height:100%;background:var(--selection);
   border-left:2px solid var(--primary);border-right:2px solid var(--primary);
   pointer-events:none}
@@ -212,7 +218,7 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:16px;h
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
       </svg>
-      AudioEdit <span style="font-size:11px;font-weight:700;color:var(--primary);margin-left:6px;background:var(--primary-glow);padding:1px 6px;border-radius:999px">v6</span>
+      AudioEdit <span style="font-size:11px;font-weight:700;color:var(--primary);margin-left:6px;background:var(--primary-glow);padding:1px 6px;border-radius:999px">v7</span>
     </div>
     <div style="display:flex;gap:var(--space-2)">
       <button class="icon-btn" id="themeToggle" aria-label="切換主題">
@@ -286,6 +292,8 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:16px;h
       <div class="timeline" id="timeline">
         <div class="tl-selected" id="tlSelected"></div>
         <div class="tl-playhead" id="tlPlayhead"></div>
+        <div class="tl-handle" id="tlHandleL" style="display:none"></div>
+        <div class="tl-handle" id="tlHandleR" style="display:none"></div>
       </div>
       <div class="tl-labels">
         <span id="tlStart">0:00</span>
@@ -503,11 +511,11 @@ function tlClientToTime(clientX) {
 }
 
 function getHandleAt(clientX) {
-  if (!sel.start !== null && sel.end !== null) return 'body';
+  if (sel.start === null || sel.end === null) return 'new';
   const rect = tl.getBoundingClientRect();
   const sx = (sel.start / duration) * rect.width + rect.left;
-  const ex = (sel.end / duration) * rect.width + rect.left;
-  const thresh = 24;
+  const ex = (sel.end   / duration) * rect.width + rect.left;
+  const thresh = 28;
   if (Math.abs(clientX - sx) < thresh) return 'start';
   if (Math.abs(clientX - ex) < thresh) return 'end';
   const t = tlClientToTime(clientX);
@@ -517,17 +525,19 @@ function getHandleAt(clientX) {
 
 tl.addEventListener('touchstart', e => {
   e.preventDefault();
+  if (!duration) return;
   const x = e.touches[0].clientX;
-  isDragging = true;
   dragTarget = getHandleAt(x);
-  dragStartX = x;
-  dragStartSelStart = sel.start;
-  dragStartSelEnd = sel.end;
   if (dragTarget === 'new') {
     const t = tlClientToTime(x);
     sel.start = t; sel.end = t;
     dragTarget = 'end';
   }
+  isDragging = true;
+  dragStartX = x;
+  dragStartSelStart = sel.start;
+  dragStartSelEnd = sel.end;
+  updateTimeline();
 }, { passive: false });
 
 tl.addEventListener('touchmove', e => {
@@ -546,16 +556,18 @@ tl.addEventListener('touchend', e => {
 }, { passive: false });
 
 tl.addEventListener('mousedown', e => {
-  isDragging = true;
+  if (!duration) return;
   dragTarget = getHandleAt(e.clientX);
-  dragStartX = e.clientX;
-  dragStartSelStart = sel.start;
-  dragStartSelEnd = sel.end;
   if (dragTarget === 'new') {
     const t = tlClientToTime(e.clientX);
     sel.start = t; sel.end = t;
     dragTarget = 'end';
   }
+  isDragging = true;
+  dragStartX = e.clientX;
+  dragStartSelStart = sel.start;
+  dragStartSelEnd = sel.end;
+  updateTimeline();
 });
 window.addEventListener('mousemove', e => {
   if (!isDragging) return;
@@ -598,6 +610,12 @@ function updateTimeline() {
   const sel_e = sel.end   !== null ? sel.end   : duration;
   document.getElementById('tlSelected').style.left  = pct(sel_s);
   document.getElementById('tlSelected').style.width = pct(sel_e - sel_s);
+  const hl = document.getElementById('tlHandleL');
+  const hr = document.getElementById('tlHandleR');
+  if (sel.start !== null) {
+    hl.style.display = ''; hl.style.left = 'calc(' + pct(sel_s) + ' - 2px)';
+    hr.style.display = ''; hr.style.left = 'calc(' + pct(sel_e) + ' - 2px)';
+  }
 }
 
 function updatePlayhead(t) {
