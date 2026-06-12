@@ -462,59 +462,87 @@ themeToggle.addEventListener('click', () => {
 // ─── Upload ───────────────────────────────────────────────────────────
 const uploadZone = document.getElementById('uploadZone');
 const fileInput  = document.getElementById('fileInput');
-uploadZone.addEventListener('click', () => { try { fileInput.click(); } catch(e) {} });
+uploadZone.addEventListener('click', () => {
+  // Pre-warm AudioContext inside user gesture
+  try {
+    if (!audioCtx || audioCtx.state === 'closed') {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch(e) {}
+  try { fileInput.click(); } catch(e) {}
+});
 uploadZone.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') fileInput.click(); });
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
-fileInput.addEventListener('change', e => { if(e.target.files[0]) loadFile(e.target.files[0]); });
+fileInput.addEventListener('change', function(e) {
+  const f = e.target.files && e.target.files[0];
+  if (f) {
+    loadFile(f);
+  }
+  // Reset so same file can be re-selected
+  setTimeout(() => { try { fileInput.value = ''; } catch(e) {} }, 1000);
+});
 
 function fmt(s) { const m=Math.floor(s/60); return m+':'+String(Math.floor(s%60)).padStart(2,'0'); }
 function fmtFull(s) { const m=Math.floor(s/60),sec=Math.floor(s%60),ms=Math.floor((s%1)*10); return m+':'+String(sec).padStart(2,'0')+'.'+ms; }
 function fmtSize(b) { return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB'; }
 
-async function loadFile(file) {
-  showProgress('載入音訊…', 10);
+function loadFile(file) {
+  showProgress('載入中…', 10);
+  showToast('⏳ 正在讀取：' + file.name);
+  stopAudio();
+  originalFile = file;
+  sel.start = null; sel.end = null;
+  pausedAt = 0;
+
+  // Ensure AudioContext exists and is running
   try {
-    stopAudio();
-    originalFile = file;
-    sel.start = null; sel.end = null;
-    pausedAt = 0;
-    if (audioCtx && audioCtx.state !== 'closed') {
-      try { await audioCtx.close(); } catch(e) {}
+    if (!audioCtx || audioCtx.state === 'closed') {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') {
-      try { await audioCtx.resume(); } catch(e) {}
-    }
-    const ab = await file.arrayBuffer();
-    updateProgress(35);
-    let decoded = null;
-    try {
-      decoded = await audioCtx.decodeAudioData(ab.slice(0));
-    } catch (err1) {
-      try {
-        decoded = await new Promise((resolve, reject) => {
-          audioCtx.decodeAudioData(ab.slice(0), resolve, reject);
-        });
-      } catch (err2) {
-        throw err2 || err1;
-      }
-    }
-    if (!decoded) throw new Error('Safari 無法解碼這個音訊格式');
-    audioBuffer = decoded;
-    updateProgress(80);
-    setupUI(file);
-    updateProgress(100);
-    setTimeout(hideProgress, 400);
-    showToast('✓ 音訊載入成功');
+    if (audioCtx.state === 'suspended') audioCtx.resume();
   } catch(e) {
     hideProgress();
-    const msg = (e && e.message) ? e.message : '不支援的音訊格式';
-    showToast('❌ 載入失敗：' + msg);
-  } finally {
-    fileInput.value = '';
+    showToast('❌ 無法建立音訊引擎：' + e.message);
+    return;
   }
+
+  updateProgress(20);
+
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    updateProgress(50);
+    const arrayBuf = ev.target.result;
+    // Use callback form — most compatible on iOS Safari
+    audioCtx.decodeAudioData(
+      arrayBuf,
+      function(decoded) {
+        audioBuffer = decoded;
+        updateProgress(90);
+        try {
+          setupUI(file);
+        } catch(err) {
+          hideProgress();
+          showToast('❌ 介面建立失敗：' + err.message);
+          return;
+        }
+        updateProgress(100);
+        setTimeout(hideProgress, 300);
+        showToast('✓ 載入成功 · ' + fmt(audioBuffer.duration));
+      },
+      function(err) {
+        hideProgress();
+        showToast('❌ 解碼失敗，請試 .m4a 或 .mp3 格式');
+      }
+    );
+  };
+  reader.onerror = function() {
+    hideProgress();
+    showToast('❌ 無法讀取檔案');
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function setupUI(file) {
