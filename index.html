@@ -331,7 +331,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
   <div class="main" id="mainArea">
     <!-- Upload -->
     <div class="upload-zone" id="uploadZone" role="button" tabindex="0">
-      <input type="file" id="fileInput" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac,.mp4,.aiff,.au" style="display:none">
+      <input type="file" id="fileInput" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac,.mp4,.aiff,.au,.caf,.3gp,.3gpp" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" />
       <svg class="upload-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
         <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
@@ -462,7 +462,7 @@ themeToggle.addEventListener('click', () => {
 // ─── Upload ───────────────────────────────────────────────────────────
 const uploadZone = document.getElementById('uploadZone');
 const fileInput  = document.getElementById('fileInput');
-uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('click', () => { try { fileInput.click(); } catch(e) {} });
 uploadZone.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') fileInput.click(); });
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
@@ -476,25 +476,52 @@ function fmtSize(b) { return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toF
 async function loadFile(file) {
   showProgress('載入音訊…', 10);
   try {
+    stopAudio();
     originalFile = file;
-    const ab = await file.arrayBuffer();
-    updateProgress(40);
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    audioBuffer = await audioCtx.decodeAudioData(ab);
-    updateProgress(80);
     sel.start = null; sel.end = null;
+    pausedAt = 0;
+    if (audioCtx && audioCtx.state !== 'closed') {
+      try { await audioCtx.close(); } catch(e) {}
+    }
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') {
+      try { await audioCtx.resume(); } catch(e) {}
+    }
+    const ab = await file.arrayBuffer();
+    updateProgress(35);
+    let decoded = null;
+    try {
+      decoded = await audioCtx.decodeAudioData(ab.slice(0));
+    } catch (err1) {
+      try {
+        decoded = await new Promise((resolve, reject) => {
+          audioCtx.decodeAudioData(ab.slice(0), resolve, reject);
+        });
+      } catch (err2) {
+        throw err2 || err1;
+      }
+    }
+    if (!decoded) throw new Error('Safari 無法解碼這個音訊格式');
+    audioBuffer = decoded;
+    updateProgress(80);
     setupUI(file);
     updateProgress(100);
     setTimeout(hideProgress, 400);
     showToast('✓ 音訊載入成功');
-  } catch(e) { hideProgress(); showToast('❌ 載入失敗：'+e.message); }
+  } catch(e) {
+    hideProgress();
+    const msg = (e && e.message) ? e.message : '不支援的音訊格式';
+    showToast('❌ 載入失敗：' + msg);
+  } finally {
+    fileInput.value = '';
+  }
 }
 
 function setupUI(file) {
   stopAudio();
-  uploadZone.style.display = 'none';
   const fi = document.getElementById('fileInfo');
   fi.classList.add('visible');
+  uploadZone.style.display = 'none';
   document.getElementById('fileName').textContent = file.name;
   document.getElementById('fileMeta').textContent =
     fmtSize(file.size)+' · '+fmt(audioBuffer.duration)+' · '+audioBuffer.sampleRate+' Hz · '+audioBuffer.numberOfChannels+'ch';
@@ -519,6 +546,7 @@ document.getElementById('btnRemove').addEventListener('click', () => {
   document.getElementById('btnAction').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 上傳檔案以開始';
   ['trim','compress','export'].forEach(t => { document.getElementById('panel-'+t).innerHTML='<div class="no-file-hint">請先上傳音訊檔案</div>'; });
   fileInput.value = '';
+  showToast('已移除檔案');
 });
 
 // ─── Waveform Draw ────────────────────────────────────────────────────
