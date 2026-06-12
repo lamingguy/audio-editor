@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-HK" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AudioEdit">
+<meta name="theme-color" content="#0f0e0d">
+<title>AudioEdit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+  --space-1:.25rem;--space-2:.5rem;--space-3:.75rem;--space-4:1rem;
+  --space-5:1.25rem;--space-6:1.5rem;--space-8:2rem;--space-10:2.5rem;
+  --radius-sm:.375rem;--radius-md:.5rem;--radius-lg:.75rem;
+  --radius-xl:1rem;--radius-full:9999px;
+  --transition:180ms cubic-bezier(0.16,1,0.3,1);
+  --font-body:'Inter',-apple-system,sans-serif;
+}
+[data-theme="dark"]{
+  --color-bg:#0f0e0d;--color-surface:#141312;--color-surface-2:#1a1917;
+  --color-surface-offset:#201f1d;--color-surface-dynamic:#2a2926;
+  --color-divider:#2d2c29;--color-border:#383735;
+  --color-text:#e8e6e3;--color-text-muted:#8a8884;--color-text-faint:#555350;
+  --color-primary:#4f98a3;--color-primary-hover:#227f8b;--color-primary-active:#1a626b;
+  --color-primary-glow:rgba(79,152,163,0.15);
+  --color-selection:rgba(79,152,163,0.35);
+  --color-playhead:rgba(255,255,255,0.85);
+  --color-success:#6daa45;--color-error:#d163a7;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.3);--shadow-md:0 4px 16px rgba(0,0,0,.4);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.5);
+}
+[data-theme="light"]{
+  --color-bg:#f7f6f2;--color-surface:#f9f8f5;--color-surface-2:#fbfbf9;
+  --color-surface-offset:#f3f0ec;--color-surface-dynamic:#e6e4df;
+  --color-divider:#dcd9d5;--color-border:#d4d1ca;
+  --color-text:#28251d;--color-text-muted:#7a7974;--color-text-faint:#bab9b4;
+  --color-primary:#01696f;--color-primary-hover:#0c4e54;--color-primary-active:#0f3638;
+  --color-primary-glow:rgba(1,105,111,0.1);
+  --color-selection:rgba(1,105,111,0.25);
+  --color-playhead:rgba(0,0,0,0.7);
+  --color-success:#437a22;--color-error:#a12c7b;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.1);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.15);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-text-size-adjust:none;text-size-adjust:none;-webkit-font-smoothing:antialiased;}
+body{min-height:100dvh;font-family:var(--font-body);font-size:var(--text-sm);
+  color:var(--color-text);background:var(--color-bg);overflow:hidden;
+  user-select:none;-webkit-user-select:none;}
+button{cursor:pointer;background:none;border:none;font:inherit;color:inherit;}
+input{font:inherit;}
+
+#app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;}
+
+/* Top Bar */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:var(--space-3) var(--space-4);
+  padding-top:calc(var(--space-3) + env(safe-area-inset-top,0px));
+  background:var(--color-surface);border-bottom:1px solid var(--color-border);z-index:10;
+}
+.topbar-logo{display:flex;align-items:center;gap:var(--space-2);
+  font-weight:700;font-size:var(--text-base);letter-spacing:-.02em;}
+.topbar-logo svg{color:var(--color-primary);}
+.topbar-actions{display:flex;gap:var(--space-2);}
+.icon-btn{width:36px;height:36px;border-radius:var(--radius-md);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--color-text-muted);transition:color var(--transition),background var(--transition);}
+.icon-btn:active{background:var(--color-surface-offset);color:var(--color-text);}
+
+.main{flex:1;overflow-y:auto;overflow-x:hidden;}
+.main::-webkit-scrollbar{display:none;}
+
+/* Upload */
+.upload-zone{
+  margin:var(--space-4);border:2px dashed var(--color-border);
+  border-radius:var(--radius-xl);padding:var(--space-8) var(--space-4);
+  text-align:center;cursor:pointer;
+  transition:border-color var(--transition),background var(--transition);
+  background:var(--color-surface);
+}
+.upload-zone.drag-over,.upload-zone:active{border-color:var(--color-primary);background:var(--color-primary-glow);}
+.upload-icon{color:var(--color-primary);margin:0 auto var(--space-3);}
+.upload-title{font-size:var(--text-base);font-weight:600;margin-bottom:var(--space-1);}
+.upload-sub{font-size:var(--text-xs);color:var(--color-text-muted);}
+.upload-formats{font-size:var(--text-xs);color:var(--color-text-faint);margin-top:var(--space-2);}
+
+/* File Info */
+.file-info{display:none;margin:var(--space-4) var(--space-4) 0;
+  background:var(--color-surface);border-radius:var(--radius-xl);
+  border:1px solid var(--color-border);padding:var(--space-4);}
+.file-info.visible{display:block;}
+.file-header{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);}
+.file-icon{width:40px;height:40px;border-radius:var(--radius-lg);
+  background:var(--color-primary-glow);display:flex;align-items:center;
+  justify-content:center;color:var(--color-primary);flex-shrink:0;}
+.file-name{font-weight:600;font-size:var(--text-sm);word-break:break-all;}
+.file-meta{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:2px;}
+.btn-remove{margin-left:auto;width:32px;height:32px;border-radius:var(--radius-full);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--color-text-faint);flex-shrink:0;
+  transition:color var(--transition),background var(--transition);}
+.btn-remove:active{background:var(--color-surface-offset);color:var(--color-error);}
+
+/* ── Waveform ── */
+.waveform-wrap{
+  position:relative;border-radius:var(--radius-lg);overflow:hidden;
+  background:var(--color-surface-offset);margin-bottom:var(--space-2);
+  touch-action:none; /* prevent scroll while dragging on canvas */
+  cursor:crosshair;
+}
+canvas#waveform{display:block;width:100%;height:88px;}
+
+/* Selection handles overlay (drawn on canvas, but we show a tooltip-style badge) */
+.sel-badge{
+  position:absolute;top:4px;
+  background:var(--color-primary);color:#fff;
+  font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;
+  padding:2px 6px;border-radius:var(--radius-full);
+  pointer-events:none;white-space:nowrap;opacity:0;
+  transition:opacity 150ms;
+}
+#selBadgeL{left:4px;}
+#selBadgeR{right:4px;}
+.sel-badge.show{opacity:1;}
+
+.waveform-time{
+  display:flex;justify-content:space-between;
+  padding:var(--space-1) var(--space-2) var(--space-2);
+  font-size:var(--text-xs);color:var(--color-text-faint);
+  font-variant-numeric:tabular-nums;
+}
+
+/* Playback */
+.playback{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3);}
+.btn-play{
+  width:48px;height:48px;border-radius:var(--radius-full);
+  background:var(--color-primary);display:flex;align-items:center;justify-content:center;
+  color:#fff;flex-shrink:0;
+  transition:background var(--transition),transform var(--transition);
+  box-shadow:0 4px 12px var(--color-primary-glow);
+}
+.btn-play:active{background:var(--color-primary-hover);transform:scale(0.95);}
+.time-display{font-variant-numeric:tabular-nums;font-size:var(--text-xs);
+  color:var(--color-text-muted);min-width:90px;}
+.volume-wrapper{display:flex;align-items:center;gap:var(--space-2);margin-left:auto;}
+.volume-icon{color:var(--color-text-faint);}
+input[type=range]{-webkit-appearance:none;width:64px;height:4px;
+  border-radius:var(--radius-full);background:var(--color-surface-dynamic);outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;
+  border-radius:var(--radius-full);background:var(--color-primary);cursor:pointer;}
+
+/* Selection info bar */
+.sel-info-bar{
+  display:none;
+  background:var(--color-primary-glow);
+  border:1px solid color-mix(in oklch,var(--color-primary) 40%,transparent);
+  border-radius:var(--radius-lg);
+  padding:var(--space-2) var(--space-3);
+  margin-bottom:var(--space-3);
+  display:none;align-items:center;gap:var(--space-3);
+  font-size:var(--text-xs);
+}
+.sel-info-bar.show{display:flex;}
+.sel-info-label{color:var(--color-primary);font-weight:700;}
+.sel-info-times{color:var(--color-text-muted);flex:1;font-variant-numeric:tabular-nums;}
+.sel-info-dur{color:var(--color-primary);font-weight:600;font-variant-numeric:tabular-nums;}
+.btn-clear-sel{
+  color:var(--color-text-faint);font-size:var(--text-xs);
+  padding:var(--space-1) var(--space-2);border-radius:var(--radius-sm);
+  transition:all var(--transition);
+}
+.btn-clear-sel:active{background:var(--color-surface-offset);color:var(--color-error);}
+
+/* Tool Tabs */
+.tool-tabs{display:flex;gap:var(--space-1);margin:0 var(--space-4) var(--space-3);
+  background:var(--color-surface-offset);border-radius:var(--radius-lg);padding:var(--space-1);}
+.tab-btn{flex:1;padding:var(--space-2);border-radius:calc(var(--radius-lg) - 4px);
+  font-size:var(--text-xs);font-weight:500;color:var(--color-text-muted);
+  transition:all var(--transition);text-align:center;white-space:nowrap;}
+.tab-btn.active{background:var(--color-primary);color:#fff;box-shadow:var(--shadow-sm);}
+
+/* Panels */
+.panel{display:none;padding:0 var(--space-4) var(--space-4);}
+.panel.active{display:block;}
+.panel-section{margin-bottom:var(--space-4);}
+.panel-label{font-size:var(--text-xs);font-weight:600;color:var(--color-text-muted);
+  text-transform:uppercase;letter-spacing:.06em;margin-bottom:var(--space-2);}
+
+/* Trim hint */
+.trim-hint{
+  background:var(--color-surface-offset);border-radius:var(--radius-lg);
+  padding:var(--space-4);text-align:center;
+  color:var(--color-text-muted);font-size:var(--text-xs);line-height:1.7;
+}
+.trim-hint-icon{font-size:1.5rem;margin-bottom:var(--space-2);}
+.trim-actions{display:flex;gap:var(--space-2);margin-top:var(--space-3);}
+.btn-secondary{
+  flex:1;padding:var(--space-3);
+  background:var(--color-surface-dynamic);border:1px solid var(--color-border);
+  border-radius:var(--radius-lg);font-size:var(--text-xs);font-weight:600;
+  color:var(--color-text-muted);text-align:center;
+  transition:all var(--transition);
+}
+.btn-secondary:active{background:var(--color-primary-glow);color:var(--color-primary);border-color:var(--color-primary);}
+
+/* Manual time inputs */
+.time-inputs{display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-3);}
+.time-input-wrap{flex:1;display:flex;flex-direction:column;gap:4px;}
+.time-input-lbl{font-size:var(--text-xs);color:var(--color-text-faint);}
+.trim-input{
+  background:var(--color-surface-offset);border:1px solid var(--color-border);
+  border-radius:var(--radius-md);color:var(--color-text);
+  font-size:var(--text-sm);font-variant-numeric:tabular-nums;
+  padding:var(--space-2) var(--space-3);width:100%;text-align:center;
+}
+.trim-input:focus{outline:2px solid var(--color-primary);border-color:transparent;}
+
+/* Preview bar */
+.trim-preview-bar{height:6px;background:var(--color-surface-offset);
+  border-radius:var(--radius-full);overflow:hidden;position:relative;margin-top:var(--space-3);}
+.trim-selected{position:absolute;top:0;height:100%;background:var(--color-primary);
+  border-radius:var(--radius-full);transition:left var(--transition),width var(--transition);}
+
+/* Compress */
+.compress-cards{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);}
+.compress-card{background:var(--color-surface-offset);border-radius:var(--radius-lg);
+  border:2px solid transparent;padding:var(--space-3);cursor:pointer;
+  transition:all var(--transition);text-align:center;}
+.compress-card.selected{border-color:var(--color-primary);background:var(--color-primary-glow);}
+.compress-card:active{transform:scale(0.97);}
+.compress-card-title{font-size:var(--text-sm);font-weight:600;margin-bottom:2px;}
+.compress-card-sub{font-size:var(--text-xs);color:var(--color-text-muted);}
+.compress-card.selected .compress-card-title{color:var(--color-primary);}
+.slider-row{margin-bottom:var(--space-3);}
+.slider-header{display:flex;justify-content:space-between;margin-bottom:var(--space-2);}
+.slider-name{font-size:var(--text-xs);color:var(--color-text-muted);}
+.slider-val{font-size:var(--text-xs);font-weight:600;color:var(--color-primary);font-variant-numeric:tabular-nums;}
+.slider-full{-webkit-appearance:none;width:100%;height:4px;
+  border-radius:var(--radius-full);background:var(--color-surface-dynamic);outline:none;}
+.slider-full::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;
+  border-radius:var(--radius-full);background:var(--color-primary);cursor:pointer;
+  box-shadow:0 2px 8px var(--color-primary-glow);}
+
+/* Export */
+.export-group{display:flex;flex-direction:column;gap:var(--space-2);margin-bottom:var(--space-4);}
+.export-option{display:flex;align-items:center;gap:var(--space-3);
+  background:var(--color-surface-offset);border:2px solid transparent;
+  border-radius:var(--radius-lg);padding:var(--space-3);cursor:pointer;
+  transition:all var(--transition);}
+.export-option.selected{border-color:var(--color-primary);background:var(--color-primary-glow);}
+.export-option:active{transform:scale(0.98);}
+.export-badge{background:var(--color-surface-dynamic);border-radius:var(--radius-sm);
+  padding:2px 8px;font-size:var(--text-xs);font-weight:700;letter-spacing:.04em;
+  min-width:44px;text-align:center;color:var(--color-text-muted);}
+.export-option.selected .export-badge{background:var(--color-primary);color:#fff;}
+.export-desc{flex:1;}
+.export-fmt-name{font-size:var(--text-sm);font-weight:600;}
+.export-fmt-sub{font-size:var(--text-xs);color:var(--color-text-muted);}
+.size-estimate{text-align:center;font-size:var(--text-xs);color:var(--color-text-muted);
+  padding:var(--space-3);background:var(--color-surface-offset);
+  border-radius:var(--radius-lg);margin-bottom:var(--space-4);}
+.size-highlight{color:var(--color-primary);font-weight:600;}
+
+/* Action Bar */
+.action-bar{
+  padding:var(--space-3) var(--space-4);
+  padding-bottom:calc(var(--space-3) + env(safe-area-inset-bottom,0px));
+  border-top:1px solid var(--color-border);background:var(--color-surface);
+}
+.btn-primary{
+  width:100%;padding:var(--space-4);background:var(--color-primary);color:#fff;
+  border-radius:var(--radius-lg);font-size:var(--text-sm);font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:var(--space-2);
+  transition:background var(--transition),transform var(--transition);
+  box-shadow:0 4px 16px var(--color-primary-glow);
+}
+.btn-primary:active{background:var(--color-primary-hover);transform:scale(0.99);}
+.btn-primary:disabled{opacity:.4;pointer-events:none;}
+
+/* Toast */
+.toast{position:fixed;bottom:calc(var(--space-8) + env(safe-area-inset-bottom,0px));
+  left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--color-surface-2);border:1px solid var(--color-border);
+  border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);
+  font-size:var(--text-xs);color:var(--color-text);box-shadow:var(--shadow-lg);
+  opacity:0;transition:all 300ms ease;z-index:100;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* Progress */
+.progress-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+  z-index:50;align-items:center;justify-content:center;flex-direction:column;
+  gap:var(--space-4);backdrop-filter:blur(4px);}
+.progress-overlay.visible{display:flex;}
+.progress-box{background:var(--color-surface-2);border-radius:var(--radius-xl);
+  padding:var(--space-8) var(--space-10);text-align:center;min-width:200px;}
+.progress-title{font-weight:600;margin-bottom:var(--space-3);}
+.progress-bar-wrap{background:var(--color-surface-offset);border-radius:var(--radius-full);
+  height:6px;overflow:hidden;margin-bottom:var(--space-2);}
+.progress-fill{height:100%;background:var(--color-primary);border-radius:var(--radius-full);transition:width 200ms ease;}
+.progress-pct{font-size:var(--text-xs);color:var(--color-text-muted);font-variant-numeric:tabular-nums;}
+
+.no-file-hint{text-align:center;padding:var(--space-8) var(--space-4);
+  color:var(--color-text-faint);font-size:var(--text-xs);}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+      </svg>
+      AudioEdit
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="themeToggle" aria-label="切換主題">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="main" id="mainArea">
+    <!-- Upload -->
+    <div class="upload-zone" id="uploadZone" role="button" tabindex="0">
+      <input type="file" id="fileInput" accept="audio/*" style="display:none">
+      <svg class="upload-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <div class="upload-title">點擊或拖曳上傳</div>
+      <div class="upload-sub">MP3 · WAV · AAC · M4A · OGG · FLAC</div>
+      <div class="upload-formats">個人使用 · 本機處理 · 不上傳雲端</div>
+    </div>
+
+    <!-- File Info -->
+    <div class="file-info" id="fileInfo">
+      <div class="file-header">
+        <div class="file-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
+        </div>
+        <div>
+          <div class="file-name" id="fileName">—</div>
+          <div class="file-meta" id="fileMeta">—</div>
+        </div>
+        <button class="btn-remove" id="btnRemove" aria-label="移除">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Waveform with drag-select -->
+      <div class="waveform-wrap" id="waveformWrap">
+        <canvas id="waveform"></canvas>
+        <span class="sel-badge" id="selBadgeL"></span>
+        <span class="sel-badge" id="selBadgeR"></span>
+      </div>
+      <div class="waveform-time">
+        <span id="currentTime">0:00</span>
+        <span id="selDurBadge" style="color:var(--color-primary);font-weight:600;display:none"></span>
+        <span id="totalTime">0:00</span>
+      </div>
+
+      <!-- Playback -->
+      <div class="playback">
+        <button class="btn-play" id="btnPlay" aria-label="播放/暫停">
+          <svg id="playIcon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </button>
+        <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+        <div class="volume-wrapper">
+          <svg class="volume-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" aria-label="音量">
+        </div>
+      </div>
+
+      <!-- Selection info -->
+      <div class="sel-info-bar" id="selInfoBar">
+        <span class="sel-info-label">✂️ 已選取</span>
+        <span class="sel-info-times" id="selInfoTimes"></span>
+        <span class="sel-info-dur" id="selInfoDur"></span>
+        <button class="btn-clear-sel" id="btnClearSel" aria-label="清除選取">✕ 清除</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tool-tabs" id="toolTabs" style="display:none">
+      <button class="tab-btn active" data-tab="trim">✂️ 剪切</button>
+      <button class="tab-btn" data-tab="compress">📦 壓縮</button>
+      <button class="tab-btn" data-tab="export">💾 匯出</button>
+    </div>
+
+    <!-- TRIM -->
+    <div class="panel active" id="panel-trim">
+      <div class="no-file-hint">請先上傳音訊檔案</div>
+    </div>
+
+    <!-- COMPRESS -->
+    <div class="panel" id="panel-compress">
+      <div class="no-file-hint">請先上傳音訊檔案</div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="panel" id="panel-export">
+      <div class="no-file-hint">請先上傳音訊檔案</div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="btn-primary" id="btnAction" disabled>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      上傳檔案以開始
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="alert"></div>
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-box">
+    <div class="progress-title" id="progressTitle">處理中…</div>
+    <div class="progress-bar-wrap"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-pct" id="progressPct">0%</div>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────
+let audioCtx, audioBuffer, audioSource;
+let isPlaying = false, startTime = 0, pausedAt = 0;
+let originalFile = null;
+let animFrame;
+
+// Selection state (in seconds, null = no selection)
+const sel = { start: null, end: null };
+
+// Waveform drag state
+const drag = { active: false, startX: 0 };
+
+const compress = { preset: 'medium', bitrate: 128, normalize: true };
+const exportState = { format: 'wav' };
+
+// ─── Theme ────────────────────────────────────────────────────────────
+const themeToggle = document.getElementById('themeToggle');
+let currentTheme = 'dark';
+themeToggle.addEventListener('click', () => {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  themeToggle.innerHTML = currentTheme === 'dark'
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+  if (audioBuffer) drawWaveform();
+});
+
+// ─── Upload ───────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') fileInput.click(); });
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if(e.target.files[0]) loadFile(e.target.files[0]); });
+
+function fmt(s) { const m=Math.floor(s/60); return m+':'+String(Math.floor(s%60)).padStart(2,'0'); }
+function fmtFull(s) { const m=Math.floor(s/60),sec=Math.floor(s%60),ms=Math.floor((s%1)*10); return m+':'+String(sec).padStart(2,'0')+'.'+ms; }
+function fmtSize(b) { return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB'; }
+
+async function loadFile(file) {
+  showProgress('載入音訊…', 10);
+  try {
+    originalFile = file;
+    const ab = await file.arrayBuffer();
+    updateProgress(40);
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioBuffer = await audioCtx.decodeAudioData(ab);
+    updateProgress(80);
+    sel.start = null; sel.end = null;
+    setupUI(file);
+    updateProgress(100);
+    setTimeout(hideProgress, 400);
+    showToast('✓ 音訊載入成功');
+  } catch(e) { hideProgress(); showToast('❌ 載入失敗：'+e.message); }
+}
+
+function setupUI(file) {
+  stopAudio();
+  uploadZone.style.display = 'none';
+  const fi = document.getElementById('fileInfo');
+  fi.classList.add('visible');
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileMeta').textContent =
+    fmtSize(file.size)+' · '+fmt(audioBuffer.duration)+' · '+audioBuffer.sampleRate+' Hz · '+audioBuffer.numberOfChannels+'ch';
+  document.getElementById('totalTime').textContent = fmt(audioBuffer.duration);
+  document.getElementById('toolTabs').style.display = 'flex';
+  drawWaveform();
+  buildTrimPanel();
+  buildCompressPanel();
+  buildExportPanel();
+  document.getElementById('btnAction').disabled = false;
+  setActiveTab('trim');
+  updateSelInfoBar();
+}
+
+document.getElementById('btnRemove').addEventListener('click', () => {
+  stopAudio(); audioBuffer = null; originalFile = null;
+  sel.start = null; sel.end = null;
+  uploadZone.style.display = '';
+  document.getElementById('fileInfo').classList.remove('visible');
+  document.getElementById('toolTabs').style.display = 'none';
+  document.getElementById('btnAction').disabled = true;
+  document.getElementById('btnAction').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 上傳檔案以開始';
+  ['trim','compress','export'].forEach(t => { document.getElementById('panel-'+t).innerHTML='<div class="no-file-hint">請先上傳音訊檔案</div>'; });
+  fileInput.value = '';
+});
+
+// ─── Waveform Draw ────────────────────────────────────────────────────
+function drawWaveform() {
+  const canvas = document.getElementById('waveform');
+  const wrap   = document.getElementById('waveformWrap');
+  const dpr    = window.devicePixelRatio || 1;
+  const W      = wrap.offsetWidth || 340;
+  const H      = 88;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const data = audioBuffer.getChannelData(0);
+  const step = Math.ceil(data.length / W);
+  const isDark = currentTheme === 'dark';
+
+  // Background
+  ctx.fillStyle = isDark ? '#201f1d' : '#f3f0ec';
+  ctx.fillRect(0, 0, W, H);
+
+  // Selection highlight
+  if (sel.start !== null && sel.end !== null) {
+    const sx = (sel.start / audioBuffer.duration) * W;
+    const ex = (sel.end   / audioBuffer.duration) * W;
+    ctx.fillStyle = isDark ? 'rgba(79,152,163,0.18)' : 'rgba(1,105,111,0.12)';
+    ctx.fillRect(sx, 0, ex - sx, H);
+  }
+
+  // Bars
+  const inSelColor  = isDark ? '#4f98a3' : '#01696f';
+  const outSelColor = isDark ? 'rgba(79,152,163,0.28)' : 'rgba(1,105,111,0.22)';
+  const noSelColor  = isDark ? '#4f98a3' : '#01696f';
+
+  const hasSel = sel.start !== null && sel.end !== null;
+  for (let i = 0; i < W; i++) {
+    let min = 1, max = -1;
+    for (let j = 0; j < step; j++) {
+      const d = data[i*step+j] || 0;
+      if (d < min) min = d; if (d > max) max = d;
+    }
+    const norm = i / W;
+    const inSelection = hasSel && norm >= (sel.start/audioBuffer.duration) && norm <= (sel.end/audioBuffer.duration);
+    ctx.fillStyle = hasSel ? (inSelection ? inSelColor : outSelColor) : noSelColor;
+    const barH = Math.max(2, (max - min) * H * 0.44);
+    ctx.fillRect(i, H/2 - barH/2, 1, barH);
+  }
+
+  // Selection handles (vertical lines)
+  if (hasSel) {
+    const sx = (sel.start / audioBuffer.duration) * W;
+    const ex = (sel.end   / audioBuffer.duration) * W;
+    ctx.strokeStyle = isDark ? 'rgba(79,152,163,0.9)' : 'rgba(1,105,111,0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ex, 0); ctx.lineTo(ex, H); ctx.stroke();
+
+    // Handle grips
+    const grip = (x) => {
+      ctx.fillStyle = isDark ? '#4f98a3' : '#01696f';
+      ctx.beginPath(); ctx.roundRect(x-4, H/2-12, 8, 24, 4); ctx.fill();
+      ctx.fillStyle = '#fff';
+      for(let r=-1;r<=1;r+=1){
+        ctx.beginPath(); ctx.arc(x, H/2+r*6, 1.2, 0, Math.PI*2); ctx.fill();
+      }
+    };
+    grip(sx); grip(ex);
+  }
+
+  // Playhead
+  const elapsed = isPlaying ? (audioCtx.currentTime - startTime + pausedAt) : pausedAt;
+  const px = (elapsed / audioBuffer.duration) * W;
+  ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+  // Playhead triangle
+  ctx.fillStyle = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
+  ctx.beginPath(); ctx.moveTo(px-5,0); ctx.lineTo(px+5,0); ctx.lineTo(px,8); ctx.closePath(); ctx.fill();
+}
+
+// ─── Waveform Interaction (Drag to Select) ────────────────────────────
+const canvas = document.getElementById('waveform');
+const wrapEl  = document.getElementById('waveformWrap');
+
+function xToTime(clientX) {
+  const rect = canvas.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  return ratio * audioBuffer.duration;
+}
+
+// Touch events
+wrapEl.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (!audioBuffer) return;
+  const t = xToTime(e.touches[0].clientX);
+  drag.active = true;
+  drag.startT = t;
+  sel.start = t; sel.end = t;
+  drawWaveform(); updateSelInfoBar();
+}, { passive: false });
+
+wrapEl.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!drag.active || !audioBuffer) return;
+  const t = xToTime(e.touches[0].clientX);
+  sel.start = Math.min(drag.startT, t);
+  sel.end   = Math.max(drag.startT, t);
+  drawWaveform(); updateSelInfoBar();
+}, { passive: false });
+
+wrapEl.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (!drag.active) return;
+  drag.active = false;
+  // If tap (no meaningful drag), set playhead instead
+  if (sel.end - sel.start < 0.05) {
+    pausedAt = sel.start;
+    sel.start = null; sel.end = null;
+    if (isPlaying) { stopAudio(); playAudio(); }
+    drawWaveform();
+  }
+  updateSelInfoBar();
+}, { passive: false });
+
+// Mouse events (for desktop / iPadOS pointer)
+wrapEl.addEventListener('mousedown', e => {
+  if (!audioBuffer) return;
+  drag.active = true;
+  drag.startT = xToTime(e.clientX);
+  sel.start = drag.startT; sel.end = drag.startT;
+  drawWaveform(); updateSelInfoBar();
+});
+window.addEventListener('mousemove', e => {
+  if (!drag.active || !audioBuffer) return;
+  const t = xToTime(e.clientX);
+  sel.start = Math.min(drag.startT, t);
+  sel.end   = Math.max(drag.startT, t);
+  drawWaveform(); updateSelInfoBar();
+});
+window.addEventListener('mouseup', e => {
+  if (!drag.active) return;
+  drag.active = false;
+  if (sel.end - sel.start < 0.05) {
+    pausedAt = sel.start || 0;
+    sel.start = null; sel.end = null;
+    if (isPlaying) { stopAudio(); playAudio(); }
+    drawWaveform();
+  }
+  updateSelInfoBar();
+});
+
+// ─── Selection Info Bar ───────────────────────────────────────────────
+function updateSelInfoBar() {
+  const bar = document.getElementById('selInfoBar');
+  const timesEl = document.getElementById('selInfoTimes');
+  const durEl   = document.getElementById('selInfoDur');
+  const badgeL  = document.getElementById('selBadgeL');
+  const badgeR  = document.getElementById('selBadgeR');
+  const durBadge = document.getElementById('selDurBadge');
+
+  if (sel.start !== null && sel.end !== null && (sel.end - sel.start) >= 0.05) {
+    bar.classList.add('show');
+    timesEl.textContent = fmtFull(sel.start) + ' → ' + fmtFull(sel.end);
+    const dur = sel.end - sel.start;
+    durEl.textContent = fmtFull(dur);
+    badgeL.textContent = fmtFull(sel.start);
+    badgeR.textContent = fmtFull(sel.end);
+    badgeL.classList.add('show');
+    badgeR.classList.add('show');
+    durBadge.textContent = '◀ ' + fmtFull(dur) + ' ▶';
+    durBadge.style.display = '';
+
+    // Update trim inputs if panel is visible
+    const ts = document.getElementById('trimStart');
+    const te = document.getElementById('trimEnd');
+    if (ts) ts.value = fmtFull(sel.start);
+    if (te) te.value = fmtFull(sel.end);
+    updateTrimBar();
+  } else {
+    bar.classList.remove('show');
+    badgeL.classList.remove('show');
+    badgeR.classList.remove('show');
+    durBadge.style.display = 'none';
+  }
+}
+
+document.getElementById('btnClearSel').addEventListener('click', () => {
+  sel.start = null; sel.end = null;
+  drawWaveform(); updateSelInfoBar();
+  const ts = document.getElementById('trimStart');
+  const te = document.getElementById('trimEnd');
+  if (ts) ts.value = fmtFull(0);
+  if (te && audioBuffer) te.value = fmtFull(audioBuffer.duration);
+  updateTrimBar();
+});
+
+// ─── Playback ─────────────────────────────────────────────────────────
+function playAudio() {
+  if (!audioBuffer||!audioCtx) return;
+  audioSource = audioCtx.createBufferSource();
+  audioSource.buffer = audioBuffer;
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.value = parseFloat(document.getElementById('volumeSlider').value);
+  audioSource.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  startTime = audioCtx.currentTime;
+  audioSource.start(0, pausedAt);
+  isPlaying = true;
+  document.getElementById('playIcon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+  audioSource.onended = () => { if(isPlaying){isPlaying=false;pausedAt=0;document.getElementById('playIcon').innerHTML='<polygon points="5 3 19 12 5 21 5 3"/>'; drawWaveform();} };
+  animatePlayback();
+}
+function stopAudio() {
+  if(audioSource){try{audioSource.stop();}catch(e){}audioSource=null;}
+  isPlaying=false; cancelAnimationFrame(animFrame);
+  document.getElementById('playIcon').innerHTML='<polygon points="5 3 19 12 5 21 5 3"/>';
+}
+function animatePlayback() {
+  if(!isPlaying) return;
+  const elapsed = audioCtx.currentTime - startTime + pausedAt;
+  if(elapsed>=audioBuffer.duration){isPlaying=false;pausedAt=0;drawWaveform();updateTimeDisplay();return;}
+  drawWaveform(); updateTimeDisplay(elapsed);
+  animFrame = requestAnimationFrame(animatePlayback);
+}
+function updateTimeDisplay(cur) {
+  const c = cur!==undefined?cur:pausedAt;
+  document.getElementById('currentTime').textContent = fmt(c);
+  document.getElementById('timeDisplay').textContent = fmt(c)+' / '+fmt(audioBuffer?audioBuffer.duration:0);
+}
+document.getElementById('btnPlay').addEventListener('click', () => {
+  if(!audioBuffer) return;
+  if(audioCtx&&audioCtx.state==='suspended') audioCtx.resume();
+  if(isPlaying){pausedAt+=audioCtx.currentTime-startTime;stopAudio();}
+  else playAudio();
+});
+
+// ─── Tabs ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.dataset.tab)));
+function setActiveTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id==='panel-'+tab));
+  const labels = {trim:'✂️ 套用剪切', compress:'📦 套用壓縮', export:'💾 匯出音訊'};
+  document.getElementById('btnAction').innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${labels[tab]}`;
+}
+
+// ─── Trim Panel ───────────────────────────────────────────────────────
+function buildTrimPanel() {
+  const dur = audioBuffer.duration;
+  document.getElementById('panel-trim').innerHTML = `
+    <div class="panel-section">
+      <div class="panel-label">✂️ 在波形上拖曳選取範圍</div>
+      <div class="trim-hint">
+        <div class="trim-hint-icon">👆</div>
+        <strong>用手指在波形上拖曳</strong>即可選取要保留的片段<br>
+        <span style="color:var(--color-text-faint)">亮色部分 = 保留 &nbsp;·&nbsp; 暗色部分 = 裁去</span>
+        <div class="trim-actions">
+          <button class="btn-secondary" onclick="selectAll()">全選</button>
+          <button class="btn-secondary" onclick="playSelection()">▶ 預覽選段</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">微調時間點</div>
+      <div class="time-inputs">
+        <div class="time-input-wrap">
+          <span class="time-input-lbl">開始（保留從）</span>
+          <input class="trim-input" id="trimStart" type="text" value="${fmtFull(sel.start||0)}" aria-label="開始時間">
+        </div>
+        <span style="color:var(--color-text-faint);padding-top:18px">→</span>
+        <div class="time-input-wrap">
+          <span class="time-input-lbl">結束（保留至）</span>
+          <input class="trim-input" id="trimEnd" type="text" value="${fmtFull(sel.end||dur)}" aria-label="結束時間">
+        </div>
+      </div>
+      <div class="trim-preview-bar" style="margin-top:var(--space-3)">
+        <div class="trim-selected" id="trimBar" style="left:0%;width:100%"></div>
+      </div>
+    </div>
+  `;
+  document.getElementById('trimStart').addEventListener('blur', () => {
+    const s = parseT(document.getElementById('trimStart').value);
+    const e = parseT(document.getElementById('trimEnd').value);
+    sel.start = Math.max(0, Math.min(s, dur));
+    sel.end   = Math.max(sel.start+0.05, Math.min(e, dur));
+    drawWaveform(); updateSelInfoBar(); updateTrimBar();
+  });
+  document.getElementById('trimEnd').addEventListener('blur', () => {
+    const s = parseT(document.getElementById('trimStart').value);
+    const e = parseT(document.getElementById('trimEnd').value);
+    sel.start = Math.max(0, Math.min(s, dur));
+    sel.end   = Math.max(sel.start+0.05, Math.min(e, dur));
+    drawWaveform(); updateSelInfoBar(); updateTrimBar();
+  });
+  updateTrimBar();
+}
+
+function parseT(str) {
+  const p = str.split(':');
+  if(p.length===2) return parseFloat(p[0])*60+parseFloat(p[1]);
+  return parseFloat(str)||0;
+}
+function updateTrimBar() {
+  const bar = document.getElementById('trimBar');
+  if(!bar||!audioBuffer) return;
+  const dur = audioBuffer.duration;
+  const s = sel.start!==null?sel.start:0;
+  const e = sel.end!==null?sel.end:dur;
+  bar.style.left  = (s/dur*100).toFixed(2)+'%';
+  bar.style.width = ((e-s)/dur*100).toFixed(2)+'%';
+}
+function selectAll() {
+  sel.start=0; sel.end=audioBuffer.duration;
+  const ts=document.getElementById('trimStart'), te=document.getElementById('trimEnd');
+  if(ts) ts.value=fmtFull(0);
+  if(te) te.value=fmtFull(audioBuffer.duration);
+  drawWaveform(); updateSelInfoBar(); updateTrimBar();
+}
+function playSelection() {
+  if(!audioBuffer) return;
+  if(sel.start===null||sel.end===null||sel.end-sel.start<0.05){showToast('請先選取範圍');return;}
+  stopAudio();
+  pausedAt = sel.start;
+  playAudio();
+  // Stop at selection end
+  const stopAfter = (sel.end - sel.start) * 1000;
+  setTimeout(() => { if(isPlaying){pausedAt=sel.start;stopAudio();drawWaveform();} }, stopAfter+100);
+  showToast('▶ 預覽選段');
+}
+
+// ─── Compress Panel ───────────────────────────────────────────────────
+function buildCompressPanel() {
+  document.getElementById('panel-compress').innerHTML = `
+    <div class="panel-section">
+      <div class="panel-label">壓縮預設</div>
+      <div class="compress-cards">
+        <div class="compress-card" onclick="selectPreset('voice',this)">
+          <div class="compress-card-title">🎙 人聲</div>
+          <div class="compress-card-sub">64 kbps · 最小</div>
+        </div>
+        <div class="compress-card selected" onclick="selectPreset('medium',this)">
+          <div class="compress-card-title">🎵 標準</div>
+          <div class="compress-card-sub">128 kbps · 推薦</div>
+        </div>
+        <div class="compress-card" onclick="selectPreset('high',this)">
+          <div class="compress-card-title">🎧 高質</div>
+          <div class="compress-card-sub">192 kbps · 清晰</div>
+        </div>
+        <div class="compress-card" onclick="selectPreset('lossless',this)">
+          <div class="compress-card-title">💎 無損</div>
+          <div class="compress-card-sub">WAV · 原質</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">自訂位元率</div>
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">Bitrate</span>
+          <span class="slider-val" id="bitrateVal">128 kbps</span>
+        </div>
+        <input type="range" class="slider-full" id="bitrateSlider" min="32" max="320" step="32" value="128" aria-label="位元率">
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">選項</div>
+      <label style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer;padding:var(--space-3);background:var(--color-surface-offset);border-radius:var(--radius-lg)">
+        <input type="checkbox" id="normalizeCheck" checked style="width:18px;height:18px;accent-color:var(--color-primary)">
+        <span style="font-size:var(--text-sm)">正規化音量 (Normalize)</span>
+      </label>
+    </div>
+  `;
+  document.getElementById('bitrateSlider').addEventListener('input', e => {
+    compress.bitrate=parseInt(e.target.value);
+    document.getElementById('bitrateVal').textContent=compress.bitrate+' kbps';
+  });
+}
+function selectPreset(p, el) {
+  compress.preset=p;
+  const map={voice:64,medium:128,high:192};
+  if(map[p]) { compress.bitrate=map[p]; const sl=document.getElementById('bitrateSlider'),bv=document.getElementById('bitrateVal'); if(sl){sl.value=compress.bitrate;bv.textContent=compress.bitrate+' kbps';} }
+  document.querySelectorAll('.compress-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ─── Export Panel ─────────────────────────────────────────────────────
+function buildExportPanel() {
+  document.getElementById('panel-export').innerHTML = `
+    <div class="panel-section">
+      <div class="panel-label">輸出格式</div>
+      <div class="export-group">
+        <div class="export-option" onclick="selectFormat('mp3',this)">
+          <span class="export-badge">MP3</span>
+          <div class="export-desc"><div class="export-fmt-name">MP3 壓縮</div><div class="export-fmt-sub">兼容性最佳 · 體積小</div></div>
+        </div>
+        <div class="export-option selected" onclick="selectFormat('wav',this)">
+          <span class="export-badge">WAV</span>
+          <div class="export-desc"><div class="export-fmt-name">WAV 無損</div><div class="export-fmt-sub">原始品質 · iPhone 可直接播放</div></div>
+        </div>
+        <div class="export-option" onclick="selectFormat('m4a',this)">
+          <span class="export-badge">M4A</span>
+          <div class="export-desc"><div class="export-fmt-name">M4A (AAC)</div><div class="export-fmt-sub">Apple 原生格式</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="size-estimate" id="sizeEst">
+      預計大小：計算中…
+    </div>
+  `;
+  updateSizeEst();
+}
+function selectFormat(fmt, el) {
+  exportState.format=fmt;
+  document.querySelectorAll('.export-option').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+  updateSizeEst();
+}
+function updateSizeEst() {
+  if(!audioBuffer) return;
+  const el=document.getElementById('sizeEst');
+  if(!el) return;
+  const dur = (sel.start!==null&&sel.end!==null&&sel.end>sel.start)?(sel.end-sel.start):audioBuffer.duration;
+  const wavKB = Math.round(dur*audioBuffer.sampleRate*audioBuffer.numberOfChannels*2/1024);
+  const mp3KB  = Math.round(dur*compress.bitrate*1000/8/1024);
+  el.innerHTML = `預計大小：<span class="size-highlight">WAV ~${wavKB} KB</span> · MP3 ~${mp3KB} KB${sel.start!==null?'（已選段落）':'（完整）'}`;
+}
+
+// ─── Action Button ────────────────────────────────────────────────────
+document.getElementById('btnAction').addEventListener('click', () => {
+  if(!audioBuffer) return;
+  const tab = document.querySelector('.tab-btn.active')?.dataset.tab;
+  if(tab==='trim') applyTrim();
+  else if(tab==='compress') applyCompress();
+  else if(tab==='export') doExport();
+});
+
+function applyTrim() {
+  const trimS = sel.start!==null?sel.start:0;
+  const trimE = sel.end!==null?sel.end:audioBuffer.duration;
+  if(trimE-trimS<0.05){showToast('請先在波形上選取要保留的範圍');return;}
+  showProgress('剪切中…',20);
+  setTimeout(()=>{
+    try{
+      const s=Math.floor(trimS*audioBuffer.sampleRate);
+      const e=Math.ceil(trimE*audioBuffer.sampleRate);
+      const len=e-s;
+      const nb=audioCtx.createBuffer(audioBuffer.numberOfChannels,len,audioBuffer.sampleRate);
+      for(let ch=0;ch<audioBuffer.numberOfChannels;ch++){
+        nb.copyToChannel(audioBuffer.getChannelData(ch).slice(s,e),ch);
+      }
+      updateProgress(80);
+      audioBuffer=nb;
+      sel.start=null;sel.end=null;
+      setupUI(originalFile);
+      updateProgress(100);
+      setTimeout(()=>{hideProgress();showToast('✂️ 剪切完成！'+fmt(audioBuffer.duration));},300);
+    }catch(e){hideProgress();showToast('❌ 剪切失敗');}
+  },100);
+}
+
+function applyCompress() {
+  showProgress('正規化中…',20);
+  setTimeout(()=>{
+    const chk=document.getElementById('normalizeCheck');
+    if(chk&&chk.checked){
+      let peak=0;
+      for(let ch=0;ch<audioBuffer.numberOfChannels;ch++){
+        const d=audioBuffer.getChannelData(ch);
+        for(let i=0;i<d.length;i++){if(Math.abs(d[i])>peak)peak=Math.abs(d[i]);}
+      }
+      if(peak>0&&peak<0.99){
+        const gain=0.99/peak;
+        for(let ch=0;ch<audioBuffer.numberOfChannels;ch++){
+          const d=audioBuffer.getChannelData(ch);
+          for(let i=0;i<d.length;i++)d[i]*=gain;
+        }
+      }
+    }
+    updateProgress(100);
+    setTimeout(()=>{hideProgress();showToast('📦 壓縮設定已套用，匯出時生效');},300);
+  },200);
+}
+
+function doExport() {
+  showProgress('匯出中…',10);
+  try{
+    const wav=encodeWAV(audioBuffer);
+    updateProgress(80);
+    const blob=new Blob([wav],{type:'audio/wav'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const base=(originalFile?.name||'audio').replace(/\.[^.]+$/,'');
+    a.href=url; a.download=base+'_edited.wav';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    updateProgress(100);
+    setTimeout(()=>{hideProgress();showToast('💾 匯出完成！儲存為 WAV');},300);
+  }catch(e){hideProgress();showToast('❌ 匯出失敗：'+e.message);}
+}
+
+function encodeWAV(buffer){
+  const nCh=buffer.numberOfChannels,sr=buffer.sampleRate,n=buffer.length;
+  const bl=n*nCh*2,ab=new ArrayBuffer(44+bl),v=new DataView(ab);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  ws(0,'RIFF');v.setUint32(4,36+bl,true);ws(8,'WAVE');ws(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,nCh,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*nCh*2,true);
+  v.setUint16(32,nCh*2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,bl,true);
+  let off=44;
+  const chs=[];
+  for(let c=0;c<nCh;c++)chs.push(buffer.getChannelData(c));
+  for(let i=0;i<n;i++)for(let c=0;c<nCh;c++){
+    const s=Math.max(-1,Math.min(1,chs[c][i]));
+    v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;
+  }
+  return ab;
+}
+
+// ─── Progress & Toast ─────────────────────────────────────────────────
+function showProgress(title,pct){
+  document.getElementById('progressTitle').textContent=title;
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressPct').textContent=pct+'%';
+  document.getElementById('progressOverlay').classList.add('visible');
+}
+function updateProgress(pct){
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressPct').textContent=pct+'%';
+}
+function hideProgress(){document.getElementById('progressOverlay').classList.remove('visible');}
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+</script>
+</body>
+</html>
